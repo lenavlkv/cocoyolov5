@@ -464,7 +464,7 @@ def main():
    # print(top_2)
 
     cv2.imshow("Image with Predictions", img_cv)
-    cv2.waitKey(0)  # Ждем, пока пользователь закроет окно
-    cv2.destroyAllWindows()  # Закрываем окно
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 main()
