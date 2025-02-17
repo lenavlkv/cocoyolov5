@@ -5,7 +5,9 @@ info from https://pytorch.org/hub/ultralytics_yolov5/
 
 1) mAP from classic_map_compute.py = 0.6835
 
-2) mAP from map_2predictions_without_resize_thr03.py = 0.6678
+2) mAP with resize 640 = 0.5958
+  
+3) mAP from map_2predictions_without_resize_thr03.py = 0.6678
 
 -------------------------------------------------------------------------------------------------------
 classic_map_compute.py - самый обычный базовый подсчет mAP
