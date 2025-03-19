@@ -1,0 +1,85 @@
+Mean Average Precision (mAP): 0.9618
+AP for class person: 1.0000
+AP for class bowl: 0.9992
+AP for class sink: 1.0000
+AP for class refrigerator: 0.9994
+AP for class oven: 0.9987
+AP for class dining table: 0.9997
+AP for class orange: 0.9993
+AP for class chair: 0.9997
+AP for class potted plant: 0.9999
+AP for class umbrella: 0.9999
+AP for class traffic light: 1.0000
+AP for class skateboard: 0.9999
+AP for class bicycle: 0.9999
+AP for class car: 0.9995
+AP for class truck: 0.9981
+AP for class toilet: 0.9999
+AP for class motorcycle: 1.0000
+AP for class laptop: 0.0093
+AP for class book: 0.9997
+AP for class keyboard: 1.0000
+AP for class vase: 0.9994
+AP for class tv: 0.9997
+AP for class bed: 0.0089
+AP for class airplane: 0.9999
+AP for class suitcase: 0.9995
+AP for class bird: 0.9999
+AP for class giraffe: 1.0000
+AP for class cow: 0.9999
+AP for class bench: 0.9986
+AP for class boat: 0.9999
+AP for class sheep: 0.9997
+AP for class bus: 0.9995
+AP for class handbag: 0.9988
+AP for class backpack: 0.9989
+AP for class train: 0.9998
+AP for class stop sign: 1.0000
+AP for class couch: 0.9982
+AP for class dog: 0.9992
+AP for class cat: 0.9998
+AP for class cup: 0.9992
+AP for class tie: 0.9999
+AP for class elephant: 1.0000
+AP for class clock: 0.9999
+AP for class frisbee: 0.9995
+AP for class bear: 0.9997
+AP for class zebra: 1.0000
+AP for class horse: 0.9997
+AP for class skis: 0.9996
+AP for class sports ball: 0.9998
+AP for class baseball glove: 1.0000
+AP for class broccoli: 0.9998
+AP for class donut: 0.9994
+AP for class sandwich: 0.9990
+AP for class surfboard: 0.9999
+AP for class cake: 0.9994
+AP for class pizza: 0.9995
+AP for class bottle: 0.9999
+AP for class tennis racket: 0.9999
+AP for class toothbrush: 0.9976
+AP for class cell phone: 0.0093
+AP for class remote: 0.9998
+AP for class kite: 0.9997
+AP for class snowboard: 0.9984
+AP for class fire hydrant: 0.9995
+AP for class baseball bat: 1.0000
+AP for class mouse: 0.9998
+AP for class teddy bear: 0.9996
+AP for class scissors: 0.9967
+AP for class wine glass: 0.9991
+AP for class knife: 0.9991
+AP for class spoon: 0.9990
+AP for class microwave: 0.9969
+AP for class fork: 0.9992
+AP for class carrot: 1.0000
+AP for class apple: 0.9981
+AP for class hot dog: 0.9994
+AP for class banana: 0.9997
+AP for class parking meter: 1.0000
+AP for class toaster: 0.9579
+AP for class hair drier: 1.0000
+Time: 52453.37s
+Обработка изображений: 100%|██████████| 5000/5000 [14:34:12<00:00, 10.49s/img]
+
+Process finished with exit code 0
