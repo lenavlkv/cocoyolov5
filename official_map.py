@@ -15,6 +15,7 @@ from pycocotools.cocoeval import COCOeval
 from torchvision.datasets import CocoDetection
 from torchvision.transforms import ToTensor, Compose
 from tqdm import tqdm
+from PIL import Image
 
 warnings.filterwarnings(action="ignore")
 
@@ -42,7 +43,8 @@ class Resize:
     def __call__(self, image):
         w, h = image.size
         scale = self.size / max(w, h)
-        return image.resize((int(round(w * scale)), int(round(h * scale))))
+        return image.resize((int(round(w * scale)), int(round(h * scale))),
+                            resample=Image.BILINEAR)
 
 
 class AddPadding:
