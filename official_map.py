@@ -13,7 +13,7 @@ from collections import defaultdict
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from torchvision.datasets import CocoDetection
-from torchvision.transforms import Resize, ToTensor, Compose
+from torchvision.transforms import ToTensor, Compose
 from tqdm import tqdm
 
 warnings.filterwarnings(action="ignore")
@@ -35,23 +35,58 @@ def parse_args():
     return parser.parse_args()
 
 
+class Resize:
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, image):
+        w, h = image.size
+        scale = self.size / max(w, h)
+        return image.resize((int(round(w * scale)), int(round(h * scale))))
+
+
+class AddPadding:
+    def __init__(self, pad_value=114 / 255.0):
+        self.pad_value = pad_value
+
+    def __call__(self, image, targets):
+        c, h, w = image.shape
+        size = max(h, w)
+        result = torch.full((c, size, size), self.pad_value, dtype=torch.float, device=image.device)
+        top = (size - h) // 2
+        left = (size - w) // 2
+        result[:, top:top + h, left:left + w] = image
+        new_targets = []
+        for t in targets:
+            bx, by, bw, bh = t["bbox"]
+            new_targets.append({
+                "image_id": t["image_id"],
+                "bbox": (bx + left, by + top, bw, bh),
+                "category_id": t["category_id"]
+            })
+        return top, left, result, new_targets
+
+
 class Transform:
     def __init__(self, image_size):
         self.image_size = image_size
         self.transform = Compose([
-            Resize((image_size, image_size)),
+            Resize(image_size),
             ToTensor()
         ])
+        self.padding = AddPadding()
 
     def __call__(self, image, targets):
-        w, h = image.size
+        orig_w, orig_h = image.size
         image = self.transform(image)
+        top, left, image, targets = self.padding(image, targets)
         image_id = targets[0]["image_id"] if targets else None
         for t in targets:
             assert t["image_id"] == image_id
         targets = {
             "image_id": image_id,
-            "scale": (self.image_size / w, self.image_size / h),
+            "offset": (top, left),
+            "scale": image.shape[1] / max(orig_w, orig_h),
             "detections": [{"bbox": t["bbox"],
                             "category_id": t["category_id"]}
                            for t in targets]
@@ -125,8 +160,9 @@ def evaluate(model, data_root, data_split,
                 image_id = dataset.ids[batch_idx * batch_size + i]
                 if targets[i]["image_id"] is not None:
                     assert targets[i]["image_id"] == image_id
-                scale_w, scale_h = targets[i]["scale"]
-                scale = torch.tensor((scale_w, scale_h, scale_w, scale_h))
+                scale = targets[i]["scale"]
+                top, left = targets[i]["offset"]
+                offset = torch.tensor((left, top, 0, 0))
 
                 image_mask = predictions_mask[i] >= min_confidence  # (K).
                 image_bboxes = bboxes[i][image_mask]  # (K, 4).
@@ -141,7 +177,7 @@ def evaluate(model, data_root, data_split,
                     score, category = label_confidences_cpu[j].max(0)
                     results.append({
                         "image_id": image_id,
-                        "bbox": (bboxes_cpu[j] / scale).tolist(),
+                        "bbox": ((bboxes_cpu[j] - offset) / scale).tolist(),
                         "category_id": LABEL_MAPPING[category.item()],
                         "score": score.item(),
                         "label_probs": label_confidences_cpu[j]
