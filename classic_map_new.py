@@ -79,6 +79,7 @@ def evaluate_image_with_nms(img_id):
 
         # Словарь для хранения IoU для каждого объекта
         iou_results = defaultdict(list)
+        iou_confidences = defaultdict(list)
 
         # Сохраняем предсказания и ground truth для дальнейшей оценки
         for ann in anns:
@@ -89,6 +90,7 @@ def evaluate_image_with_nms(img_id):
             gt_box = [gt_x1, gt_y1, gt_x2, gt_y2]  # Преобразуем в формат [x1, y1, x2, y2]
             iou_results['gt'].append((gt_box, ann['category_id']))
 
+        was_matched = np.zeros(len(iou_results["gt"]), dtype=bool)
         for i, pred in enumerate(nms_boxes):
             x1, y1, x2, y2 = map(int, pred)
             confidence = nms_scores[i].item()
@@ -99,31 +101,44 @@ def evaluate_image_with_nms(img_id):
             coco_label = yolo_to_coco.get(label, -1)  # Если метка не найдена, возвращаем -1
 
             max_iou = 0
+            best_idx = None
             best_gt = None
-            for gt_box, gt_category in iou_results['gt']:
+            for gt_idx, (gt_box, gt_category) in enumerate(iou_results['gt']):
+                if was_matched[gt_idx]:
+                    continue
                 iou = compute_iou(pred_box, gt_box)
                 if iou > max_iou:
                     max_iou = iou
                     best_gt = gt_category
+                    best_idx = gt_idx
+            was_matched[best_idx] = True
 
             # Записываем результаты
-            if max_iou >= 0.5 and coco_label == best_gt and confidence >= 0.5:   # Точный порог IoU для определения правильного предсказания
+            if max_iou >= 0.5 and coco_label == best_gt:   # Точный порог IoU для определения правильного предсказания
                 iou_results[coco_label].append(1)  # True positive
             else:
                 iou_results[coco_label].append(0)  # False positive
+            iou_confidences[coco_label].append(confidence)
 
 
-    return iou_results
+    return iou_results, iou_confidences
 
 
 # Процесс по всем изображениям в папке val2017
 all_results = defaultdict(list)
+all_confidences = defaultdict(list)
 
 for img_id in imgIds:
-    img_results = evaluate_image_with_nms(img_id)
+    img_results, img_confidences = evaluate_image_with_nms(img_id)
     for label, results in img_results.items():
         if label != 'gt':  # Только классы, а не "gt"
             all_results[label].extend(results)
+            all_confidences[label].extend(img_confidences[label])
+
+for label, confidences in all_confidences.items():
+    order = np.flip(np.argsort(confidences))
+    results = np.asarray(all_results[label])[order]
+    all_results[label] = results
 
 
 # Подсчет mAP
