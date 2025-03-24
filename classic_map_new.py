@@ -120,15 +120,19 @@ def evaluate_image_with_nms(img_id):
 
 # Процесс по всем изображениям в папке val2017
 all_results = defaultdict(list)
+all_confidences = defaultdict(list)
 
 for img_id in imgIds:
     img_results, img_confidences = evaluate_image_with_nms(img_id)
     for label, results in img_results.items():
         if label != 'gt':  # Только классы, а не "gt"
-            confidences = img_confidences[label]
-            order = np.flip(np.argsort(confidences))
-            results = np.asarray(results)[order]
             all_results[label].extend(results)
+            all_confidences[label].extend(img_confidences[label])
+
+for label, confidences in all_confidences.items():
+    order = np.flip(np.argsort(confidences))
+    results = np.asarray(all_results[label])[order]
+    all_results[label] = results
 
 
 # Подсчет mAP
