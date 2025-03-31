@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument("--num-workers", help="Image size", type=int, default=8)
     parser.add_argument("--iou-threshold", help="Evaluation IoU threshold", type=float, default=0.5)
     parser.add_argument("--dump-predictions", help="Dump evaluation results to a json file with a given name")
+    parser.add_argument("--top-k", type=int, default=1, help="Predict top K labels for each bbox")
     return parser.parse_args()
 
 
@@ -127,7 +128,8 @@ def evaluate(model, data_root, data_split,
              iou_threshold,
              num_workers,
              dump_predictions=None,
-             min_confidence=0.001):
+             min_confidence=0.001,
+             topk=1):
     use_cuda = torch.cuda.is_available()
 
     transforms = Transform(image_size)
@@ -176,14 +178,18 @@ def evaluate(model, data_root, data_split,
                 bboxes_cpu = image_bboxes[nms_indices].cpu()  # (K, 4).
                 label_confidences_cpu = (image_label_probs[nms_indices] * image_confidences[nms_indices][:, None]).cpu()  # (K, C).
                 for j in range(len(nms_indices)):
-                    score, category = label_confidences_cpu[j].max(0)
-                    results.append({
-                        "image_id": image_id,
-                        "bbox": ((bboxes_cpu[j] - offset) / scale).tolist(),
-                        "category_id": LABEL_MAPPING[category.item()],
-                        "score": score.item(),
-                        "label_probs": label_confidences_cpu[j]
-                    })
+                    #score, category = label_confidences_cpu[j].max(0)
+                    top_scores, top_categories = label_confidences_cpu[j].topk(1)
+
+                                        # добавляем оба предсказания в результаты
+                    for score, category in zip(top_scores, top_categories):
+                        results.append({
+                            "image_id": image_id,
+                            "bbox": ((bboxes_cpu[j] - offset) / scale).tolist(),
+                            "category_id": LABEL_MAPPING[category.item()],
+                            "score": score.item(),
+                            #"label_probs": label_confidences_cpu[j]
+                        })
 
     anno = COCO(os.path.join(data_root, "annotations", f"instances_{data_split}.json"))
     coco = COCOeval(anno,
@@ -206,7 +212,8 @@ if __name__ == "__main__":
                        image_size=args.image_size,
                        iou_threshold=args.iou_threshold,
                        num_workers=args.num_workers,
-                       dump_predictions=args.dump_predictions)
+                       dump_predictions=args.dump_predictions,
+                       topk=args.top_k)
     print("Metrics:")
     for name, value in metrics.items():
         print(f"{name}: {value}")
