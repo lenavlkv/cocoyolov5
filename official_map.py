@@ -179,7 +179,7 @@ def evaluate(model, data_root, data_split,
                 label_confidences_cpu = (image_label_probs[nms_indices] * image_confidences[nms_indices][:, None]).cpu()  # (K, C).
                 for j in range(len(nms_indices)):
                     #score, category = label_confidences_cpu[j].max(0)
-                    top_scores, top_categories = label_confidences_cpu[j].topk(1)
+                    top_scores, top_categories = label_confidences_cpu[j].topk(topk)
 
                                         # добавляем оба предсказания в результаты
                     for score, category in zip(top_scores, top_categories):
