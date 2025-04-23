@@ -130,9 +130,9 @@ def evaluate(model, data_root, data_split,
              iou_threshold,
              num_workers,
              dump_predictions=None,
-             min_confidence=0.001,
+             min_confidence=0.5,
              topk=1,
-             target_image_id=3553):
+             target_image_id=69138):
     use_cuda = torch.cuda.is_available()
 
     transforms = Transform(image_size)
@@ -159,69 +159,67 @@ def evaluate(model, data_root, data_split,
             pred_logits = predictions['pred_logits']
             pred_boxes = predictions['pred_boxes']
 
-            bboxes = pred_boxes.clone()
-            #bboxes = bboxes*640
-            bboxes[..., :2] -= bboxes[..., 2:] / 2
-
             prob = nn.functional.softmax(pred_logits, -1)
             scores, labels = prob[..., :-1].max(-1)
 
+            target_sizes = torch.tensor([(image_size, image_size)] * images.shape[0], device=images.device)
+
             predictions_mask = scores >= min_confidence
+
+            boxes = box_convert(pred_boxes, in_fmt="cxcywh", out_fmt="xywh")
+            img_h, img_w = target_sizes.unbind(1)
+            scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
+            boxes = boxes * scale_fct[:, None, :]
 
             for i in range(len(images)):
                 image_id = dataset.ids[batch_idx * batch_size + i]
-
                 if image_id != target_image_id:
                     continue
 
                 print(f"\nProcessing image ID: {image_id}")
 
+                # GT
                 ann_ids = anno.getAnnIds(imgIds=image_id)
                 gt_anns = anno.loadAnns(ann_ids)
-                gt_bboxes = [ann["bbox"] for ann in gt_anns]
+                gt_bboxes = [ann["bbox"] for ann in gt_anns] #xywh
                 gt_cats = [ann["category_id"] for ann in gt_anns]
 
-                print("Ground Truth:")
+                print("\nGround Truth:")
                 for bbox, cat_id in zip(gt_bboxes, gt_cats):
                     print(f"  Category: {cat_id}, BBox: {bbox}")
 
-                # Обработка предсказаний
-                if targets[i]["image_id"] is not None:
-                    assert targets[i]["image_id"] == image_id
-                scale = targets[i]["scale"]
-                top, left = targets[i]["offset"]
-                offset = torch.tensor((left, top, 0, 0), device=images.device)
+                # Predicted
+                mask = predictions_mask[i]
+                filtered_scores = scores[i][mask]
+                filtered_labels = labels[i][mask]
+                filtered_boxes = boxes[i][mask]
+                # print(filtered_labels)
+                # print(filtered_scores)
+                # print(filtered_boxes)
 
-                padded_size = images[i].shape[-1] # ==640
+                # filtered_scores = filtered_scores[i].topk(topk)
 
-                image_mask = predictions_mask[i] >= min_confidence
-                image_bboxes = bboxes[i][image_mask]#*padded_size #потому что detr возвращает координаты bboxes в нормализованном виде (от 0 до 1)
-                image_confidences = scores[i][image_mask]
-                image_label_probs = labels[i][image_mask]
+                # Results
+                image_results = []
+                for score, label, box in zip(filtered_scores, filtered_labels, filtered_boxes):
+                    image_results.append({
+                        'image_id': image_id,
+                        'category_id': int(label.item()),
+                        'score': float(score.item()),
+                        'bbox': [float(x.item()) for x in box] #xywh
+                    })
 
-                image_bboxes_xyxy = torch.cat([image_bboxes[:, :2], image_bboxes[:, :2] + image_bboxes[:, 2:]], 1)
-                image_bboxes_xyxy = image_bboxes_xyxy*640
-                nms_indices = ops.nms(image_bboxes_xyxy, image_confidences, iou_threshold)
-                bboxes_cpu = image_bboxes[nms_indices].cpu()
-                label_confidences_cpu = (
-                        image_label_probs[nms_indices] * image_confidences[nms_indices][:, None]).cpu()
-                offset_cpu = offset.cpu()
-                scale_cpu = torch.tensor(scale, device='cpu')
+                print("Predictions:")
+                for res in image_results:
+                    print(f"  Category: {res['category_id']}, Score: {res['score']:.4f}, BBox: {res['bbox']}")
 
-                for j in range(len(nms_indices)):
-                    top_scores, top_categories = label_confidences_cpu[j].topk(topk)
+                # top_2 = sorted([a for a in zip(filtered_scores, key=lambda w: w[1], reverse=True)][:2])
+                # print('top_2',len(top_2))
 
-                    for score, category in zip(top_scores, top_categories):
-                        results.append({
-                                "image_id": image_id,
-                                "bbox": ((bboxes_cpu[j] - offset_cpu) / scale_cpu).tolist(),
-                                "category_id": category.item(),
-                                "score": score.item(),
-                                "label_probs": label_confidences_cpu[j]
-                           })
-                print(results)
-                return
 
+                results.extend(image_results)
+
+    return results
 
 
 if __name__ == "__main__":
@@ -236,4 +234,4 @@ if __name__ == "__main__":
              num_workers=args.num_workers,
              dump_predictions=args.dump_predictions,
              topk=args.top_k,
-             target_image_id=3553)
+             target_image_id=69138)
