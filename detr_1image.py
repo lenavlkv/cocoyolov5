@@ -30,7 +30,7 @@ def parse_args():
     parser = argparse.ArgumentParser("Evaluate MS COCO mAP")
     parser.add_argument("--data", help="Path to the dataset", default=".")
     parser.add_argument("--split", help="Dataset part", default="val2017")
-    parser.add_argument("--batch-size", help="Batch size", type=int, default=32)
+    parser.add_argument("--batch-size", help="Batch size", type=int, default=1)
     parser.add_argument("--image-size", help="Image size", type=int, default=800)
     parser.add_argument("--num-workers", help="Image size", type=int, default=8)
     parser.add_argument("--iou-threshold", help="Evaluation IoU threshold", type=float, default=0.5)
