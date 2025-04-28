@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Un
 import torch.nn as nn
 import numpy as np
 from torchvision.ops import box_convert
+import torchvision.transforms as T
 
 
 
@@ -30,13 +31,12 @@ def parse_args():
     parser.add_argument("--data", help="Path to the dataset", default=".")
     parser.add_argument("--split", help="Dataset part", default="val2017")
     parser.add_argument("--batch-size", help="Batch size", type=int, default=32)
-    parser.add_argument("--image-size", help="Image size", type=int, default=640)
+    parser.add_argument("--image-size", help="Image size", type=int, default=800)
     parser.add_argument("--num-workers", help="Image size", type=int, default=8)
     parser.add_argument("--iou-threshold", help="Evaluation IoU threshold", type=float, default=0.5)
     parser.add_argument("--dump-predictions", help="Dump evaluation results to a json file with a given name")
     parser.add_argument("--top-k", type=int, default=1, help="Predict top K labels for each bbox")
     return parser.parse_args()
-
 
 class Resize:
     def __init__(self, size):
@@ -48,55 +48,29 @@ class Resize:
         return image.resize((int(round(w * scale)), int(round(h * scale))),
                             resample=Image.BILINEAR)
 
-
-class AddPadding:
-    def __init__(self, pad_value=114 / 255.0):
-        self.pad_value = pad_value
-
-    def __call__(self, image, targets):
-        c, h, w = image.shape
-        size = max(h, w)
-        result = torch.full((c, size, size), self.pad_value, dtype=torch.float, device=image.device)
-        top = (size - h) // 2
-        left = (size - w) // 2
-        result[:, top:top + h, left:left + w] = image
-        new_targets = []
-        for t in targets:
-            bx, by, bw, bh = t["bbox"]
-            new_targets.append({
-                "image_id": t["image_id"],
-                "bbox": (bx + left, by + top, bw, bh),
-                "category_id": t["category_id"]
-            })
-        return top, left, result, new_targets
-
-
 class Transform:
     def __init__(self, image_size):
         self.image_size = image_size
-        self.transform = Compose([
-            Resize(image_size),
-            ToTensor()
-        ])
-        self.padding = AddPadding()
+        self.transform = T.Compose([
+                            T.Resize(800),
+                            T.ToTensor(),
+                            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                    ])
 
     def __call__(self, image, targets):
         orig_w, orig_h = image.size
         image = self.transform(image)
-        top, left, image, targets = self.padding(image, targets)
         image_id = targets[0]["image_id"] if targets else None
         for t in targets:
             assert t["image_id"] == image_id
         targets = {
             "image_id": image_id,
-            "offset": (top, left),
             "scale": image.shape[1] / max(orig_w, orig_h),
             "detections": [{"bbox": t["bbox"],
                             "category_id": t["category_id"]}
                            for t in targets]
         }
         return image, targets
-
 
 def collate_fn(batch):
     images, targets = zip(*batch)
